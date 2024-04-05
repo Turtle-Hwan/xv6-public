@@ -536,8 +536,10 @@ procdump(void)
 int
 hello(char *string) 
 {
-  // if (string == 0)
-  //   return -1;
+  if (string == 0) {
+    cprintf("ERR : no argv, argv is null\n");
+    return -1;
+  }
   cprintf("Hello %s\n", string);
   return 0;
 }
