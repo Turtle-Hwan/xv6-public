@@ -532,3 +532,12 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int
+hello(char *string) 
+{
+  // if (string == 0)
+  //   return -1;
+  cprintf("Hello %s\n", string);
+  return 0;
+}

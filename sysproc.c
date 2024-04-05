@@ -90,9 +90,12 @@ sys_uptime(void)
   return xticks;
 }
 
+// sys_hello는 void 인자만 받을 수 있어서, argstr을 사용해야 한다.
 int
-sys_hello(char *arg)
+sys_hello(void)
 {
-  cprintf("Hello %s\n", arg);
-  return 0;
+  char  *param;
+
+  argstr(0, &param);
+  return hello(param);
 }
