@@ -331,7 +331,6 @@ scheduler(void)
   //무작위 random 수 뽑기 / ticket 총합 저장할 변수 선언
   int random_num = random();
   int total_ticket = 0;
-  int now_run_proc = 0;
   
   for(;;){
     // Enable interrupts on this processor.
@@ -339,7 +338,6 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
 
-    //now_run_proc = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE) {
         continue;
@@ -354,7 +352,6 @@ scheduler(void)
 
       //cprintf("pid: %d  | ticket: %d | rand_num: %d | total_ti: %d\n\n", p->pid, p->ticket, random_num, total_ticket);
       //만약 ticket 총합 초과로 어떤 process가 실행된다면, total ticket 초기화 및 새로운 random num 뽑기
-      now_run_proc = p->pid;
       total_ticket = 0;
       random_num = random();
 
@@ -374,7 +371,6 @@ scheduler(void)
     }
     release(&ptable.lock);
   }
-    cprintf("now_proc = %d\n", now_run_proc);
 }
 
 // Enter scheduler.  Must hold only ptable.lock
