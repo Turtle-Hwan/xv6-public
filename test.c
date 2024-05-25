@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 {
   int pid[PROC_NUM]; //여러 개 process 담을 배열
   
-  ticketset(1);
+  ticketset(100);
 
   printf(1, "Test Case 1 : every ticket is 10\n");
   for (int i = 0; i < PROC_NUM; i++) {
@@ -64,6 +64,40 @@ int main(int argc, char **argv)
   }
   for(int i = 0; i < PROC_NUM; i++)
     exit_child(pid[i]);
+
+
+  ////////////////////////
+  printf(1, "\n\nTest Case 4 : ticket 1 vs. ticket 100(parent)\n");
+  rand_index = 0;
+  printf(1, "process %d my ticket %d [parent]\n", getpid(), ticketget());
+
+  pid[0] = fork();
+  if (pid[0] == 0) {
+    //child process
+    ticketset(1);
+    printf(1, "process %d my ticket %d\n", getpid(), ticketget());
+    exit();
+  }
+  printf(1, "process %d my ticket %d [parent]\n", getpid(), ticketget());
+  exit_child(pid[0]);
+
+
+  ////////////////////////
+  printf(1, "\n\nTest Case 5 : ticket 1, ticket 1 vs. ticket 100(parent)\n");
+  rand_index = 0;
+  printf(1, "process %d my ticket %d [parent]\n", getpid(), ticketget());
+  for (int i = 0; i < 2; i++) {
+    pid[i] = fork();
+    if (pid[i] == 0) {
+      //child process
+      ticketset(1);
+      printf(1, "process %d my ticket %d\n", getpid(), ticketget());
+      exit();
+    }
+  }
+  printf(1, "process %d my ticket %d [parent]\n", getpid(), ticketget());
+  exit_child(pid[0]);
+  exit_child(pid[1]);
 
   exit();
 }
