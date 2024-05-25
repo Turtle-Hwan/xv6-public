@@ -340,7 +340,6 @@ scheduler(void)
     acquire(&ptable.lock);
 
     //now_run_proc = 0;
-//rerun:
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE) {
         continue;
@@ -374,9 +373,6 @@ scheduler(void)
       c->proc = 0;
     }
     release(&ptable.lock);
-    // if (now_run_proc == 0) {
-    //   goto rerun;
-    // }
   }
     cprintf("now_proc = %d\n", now_run_proc);
 }
