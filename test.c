@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 {
   int pid[PROC_NUM]; //여러 개 process 담을 배열
   
-  ticketset(100);
+  ticketset(1);
 
   printf(1, "Test Case 1 : every ticket is 10\n");
   for (int i = 0; i < PROC_NUM; i++) {
@@ -48,16 +48,11 @@ int main(int argc, char **argv)
   for(int i = 0; i < PROC_NUM; i++)
     exit_child(pid[i]);
 
+
   ////////////////////////
   printf(1, "\n\nTest Case 3 : different number of ticket (30, 20, 10, 50, 40)\n");
   rand_index = 0;
-  int new_rand_arr[SIZE] = {52, 40, 20, 10, 15};
-  for (int i = 0; i < SIZE; i++) {
-    rand_array[i] = new_rand_arr[i];
-  }
-
   int ticket_array[PROC_NUM] = {30, 20, 10, 50, 40};
-
   for (int i = 0; i < PROC_NUM; i++) {
     pid[i] = fork();
     if (pid[i] == 0) {

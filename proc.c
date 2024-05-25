@@ -326,20 +326,21 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  int random_num;
-  int total_ticket;
   c->proc = 0;
+
+  //무작위 random 수 뽑기 / ticket 총합 저장할 변수 선언
+  int random_num = random();
+  int total_ticket = 0;
+  int now_run_proc = 0;
   
   for(;;){
     // Enable interrupts on this processor.
     sti();
-
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    //무작위 random 수 뽑기 / ticket 총합 저장할 변수 선언
-    random_num = random();
-    total_ticket = 0;
 
+    //now_run_proc = 0;
+//rerun:
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE) {
         continue;
@@ -349,9 +350,14 @@ scheduler(void)
       if ((total_ticket + p->ticket) < random_num) {
         //cprintf("\nrunnable pid : %d", p->pid);
         total_ticket += p->ticket;
-        //cprintf("pid: %d  | tic: %d  | rand_num: %d | rand_idx: %d | total_ti: %d\n\n", p->pid, p->ticket, random_num, rand_index, total_ticket);
         continue;
       }
+
+      //cprintf("pid: %d  | ticket: %d | rand_num: %d | total_ti: %d\n\n", p->pid, p->ticket, random_num, total_ticket);
+      //만약 ticket 총합 초과로 어떤 process가 실행된다면, total ticket 초기화 및 새로운 random num 뽑기
+      now_run_proc = p->pid;
+      total_ticket = 0;
+      random_num = random();
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -368,7 +374,11 @@ scheduler(void)
       c->proc = 0;
     }
     release(&ptable.lock);
+    // if (now_run_proc == 0) {
+    //   goto rerun;
+    // }
   }
+    cprintf("now_proc = %d\n", now_run_proc);
 }
 
 // Enter scheduler.  Must hold only ptable.lock
