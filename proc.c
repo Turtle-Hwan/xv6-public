@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "rand.c"
 
 struct {
   struct spinlock lock;
@@ -88,6 +89,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->ticket = 10; //UNUSED proc일 때 ticket 10으로 초기화
 
   release(&ptable.lock);
 
@@ -325,16 +327,33 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+
+  //무작위 random 수 뽑기 / ticket 총합 저장할 변수 선언
+  int random_num = random();
+  int total_ticket = 0;
   
   for(;;){
     // Enable interrupts on this processor.
     sti();
-
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+      if(p->state != RUNNABLE) {
         continue;
+      }
+
+      // 현재 process까지의 ticket 총합이 random_num보다 같거나 크다면 해당 proc를 실행한다. 작다면 total에 더해나간다.
+      if ((total_ticket + p->ticket) < random_num) {
+        //cprintf("\nrunnable pid : %d", p->pid);
+        total_ticket += p->ticket;
+        continue;
+      }
+
+      //cprintf("pid: %d  | ticket: %d | rand_num: %d | total_ti: %d\n\n", p->pid, p->ticket, random_num, total_ticket);
+      //만약 ticket 총합 초과로 어떤 process가 실행된다면, total ticket 초기화 및 새로운 random num 뽑기
+      total_ticket = 0;
+      random_num = random();
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -342,7 +361,6 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
@@ -351,7 +369,6 @@ scheduler(void)
       c->proc = 0;
     }
     release(&ptable.lock);
-
   }
 }
 
