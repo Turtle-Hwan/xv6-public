@@ -534,11 +534,11 @@ procdump(void)
 }
 
 int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
-  cprintf("this is clone");
+  cprintf("%p, this is clone\n", stack);
   return 1;
 }
 
 int join(void **stack) {
-  cprintf("this is join");
+  cprintf("%p, %p, this is join\n", stack, *stack);
   return 1;
 }
