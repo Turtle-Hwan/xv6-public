@@ -7,7 +7,6 @@
  * 이를 위해 + thread가 여러 개 생성될 수도 있으니 static 배열로 thread 생성된 주소 공간 시작 주소를 저장해 놓으면?
  * 문제는 join 할 때 어떤 thread를 join해야 하는지 모르니까 각 thread별로 현재 작동하는지 여부와 thread_id 가 필요하다...
  * 
- * 그런데 어차피 clone()에 thread 정보를 못 넘기므로 단순히 thread 1개만 생성하고, join 호출되면 그걸 바로 종료시키는 구조로 짜도 될 것 같다? => 질문
 */
 
 // #define MAX_THREAD_NUM 100
