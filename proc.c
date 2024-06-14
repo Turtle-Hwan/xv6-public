@@ -532,3 +532,106 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
+  cprintf(" <clone system call addrs> fcn : %p, arg1 : %p, arg2 : %p, user stack : %p\n", fcn, arg1, arg2, stack);
+  
+  int i, tid;
+  struct proc *newThread;
+  struct proc *curproc = myproc();
+
+  // new thread alloc
+  if((newThread = allocproc()) == 0){
+    return -1;
+  }
+
+  acquire(&ptable.lock);
+  // 기존 process의 pgdir 등 공유 자원을 새로 만들어진 thread와 연결
+  newThread->parent = curproc;
+  newThread->pgdir = curproc->pgdir;
+  newThread->pid = curproc->pid;
+  newThread->cwd = idup(curproc->cwd);
+  for(i = 0; i < NOFILE; i++)
+    if(curproc->ofile[i])
+      newThread->ofile[i] = filedup(curproc->ofile[i]);
+  safestrcpy(newThread->name, curproc->name, sizeof(curproc->name));
+
+
+  // 부모 process의 thread num 증가, 이에 해당하는 tid 부여
+  curproc->thread_num++;
+  newThread->thread_num = curproc->thread_num;
+  newThread->tid = curproc->thread_num;
+  tid = newThread->tid;
+  // cprintf(" tid: %d, n_tid : %d, c_t_num : %d\n", tid, newThread->tid, curproc->thread_num);
+
+
+  /* stack size, trapframe 복사 후 받아온 user stack 공간에 연결  
+   * 부모 프로세스와 자식 스레드들은 주소공간을 공유해야 한다.
+  */
+  newThread->sz = curproc->sz;
+  *newThread->tf = *curproc->tf;
+
+
+  char *sp = (char *)stack + PGSIZE;  //현재 stack 위치 가리킬 stack pointer / user stack 끝에서부터 거꾸로 가면서 원하는 arg 넣는다.
+  sp -= 4;
+  *(uint *)sp = (uint)arg2;
+  sp -= 4;
+  *(uint *)sp = (uint)arg1;
+  sp -= 4;
+  *(uint *)sp = 0xffffffff;   
+
+  newThread->tf->esp = (uint)sp;
+  newThread->tf->eip = (uint)fcn;
+  cprintf(" <change thread trapfram address> esp : %p | eip : %p\n", newThread->tf->esp, newThread->tf->eip);  
+  cprintf(" <address in user stack> esp : %p | esp + 4 : %p | esp + 8 : %p\n\n", *(uint *)newThread->tf->esp,  *(uint *)(newThread->tf->esp + 4), *(uint *)(newThread->tf->esp + 8)); 
+
+
+  // Clear %eax so that fork returns 0 in the child.
+  newThread->tf->eax = 0;
+  
+  newThread->state = RUNNABLE;
+  release(&ptable.lock);
+
+  return tid;
+}
+
+int join(void **stack) {
+  struct proc *p;
+  int havekids, tid;
+  struct proc *curproc = myproc();
+  
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != curproc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        tid = p->tid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        
+        //freevm(p->pgdir); //주소공간 공유하므로 free 하면 안됨!! free 하면 재시작한다..
+        p->tid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return tid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || curproc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+  }
+}
