@@ -33,7 +33,7 @@ int thread_create(void(*fcn)(void *, void *), void *arg1, void *arg2) {
   // now_thread_num += 1;
   // newThread.is_running = 1;
 
-  printf(1, "THREAD: create\n");
+  //printf(1, "THREAD: create\n");
   thread_stack = stack;
   return clone(fcn, arg1, arg2, stack);
 }
@@ -52,7 +52,7 @@ int thread_join() {
   // }
 
 
-  printf(1, "THREAD: join\n");
+  //printf(1, "THREAD: join\n");
   join(&thread_stack);
   free(thread_stack);
   return 1;

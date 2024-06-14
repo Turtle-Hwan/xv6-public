@@ -21,6 +21,7 @@ int main() {
   }
 
   tid = thread_join();
+  printf(1, "join fin / a : %d, b : %d", a, b);
   if (tid == -1) {
     printf(1, "thread join error\n");
   }

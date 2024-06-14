@@ -101,9 +101,6 @@ int sys_clone(void) {
   argptr(2, (void*)&arg2, sizeof(*arg2));
   argptr(3, (void*)&stack, sizeof(*stack));
 
-  cprintf("\n%p %p %p %p\n", fcn, arg1, arg2, stack);
-  cprintf("%d %d", *(int*)arg1, *(int*)arg2);
-
   return clone(fcn, arg1, arg2, stack);
 }
 

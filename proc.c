@@ -534,60 +534,157 @@ procdump(void)
 }
 
 int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
-  cprintf("%p, this is clone %d %d \n", stack, *(int*)arg1, *(int*)arg2);
+  cprintf("\n stack addr: %p, this is clone %d %d \n", stack, *(int*)arg1, *(int*)arg2);
+  cprintf(" %p %p %p %p\n\n", fcn, arg1, arg2, stack);
   
-  int i, pid;
-  struct proc *np;
+  int i, tid;
+  struct proc *newThread;
   struct proc *curproc = myproc();
 
-  // Allocate process.
-  if((np = allocproc()) == 0){
+  // new thread alloc
+  if((newThread = allocproc()) == 0){
     return -1;
   }
-
-  // Copy process state from proc.
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
-    kfree(np->kstack);
-    np->kstack = 0;
-    np->state = UNUSED;
-    return -1;
-  }
-
-  //부모 프로세스와 자식 스레드들은 주소공간을 공유해야 한다.
-  //np->pgdir = curproc->pgdir;
-  
-  np->sz = curproc->sz;
-  np->parent = curproc;
-  *np->tf = *curproc->tf;
-
-  
-  np->tf->eip = (uint)fcn;
-  np->tf->esp += 4;
-  
-  // Clear %eax so that fork returns 0 in the child.
-  np->tf->eax = 0;
-
-  for(i = 0; i < NOFILE; i++)
-    if(curproc->ofile[i])
-      np->ofile[i] = filedup(curproc->ofile[i]);
-  np->cwd = idup(curproc->cwd);
-
-  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
-
-  pid = np->pid;
 
   acquire(&ptable.lock);
+  // process 내의 공유 pgdir 등 새로 만들어진 thread에 연결
+  newThread->parent = curproc;
+  newThread->pgdir = curproc->pgdir;
+  newThread->pid = curproc->pid;
+  newThread->cwd = idup(curproc->cwd);
+  
+  for(i = 0; i < NOFILE; i++)
+    if(curproc->ofile[i])
+      newThread->ofile[i] = filedup(curproc->ofile[i]);
+  safestrcpy(newThread->name, curproc->name, sizeof(curproc->name));
 
-  np->state = RUNNABLE;
+  newThread->thread_next = 0;
+  newThread->thread_head = curproc;
 
+  //user stack 공간 할당 및 받아온 stack 공간에 연결  
+  //부모 프로세스와 자식 스레드들은 주소공간을 공유해야 한다.
+
+  // char *sp;
+
+  // newThread->kstack = curproc->kstack;
+  // sp = newThread->kstack + KSTACKSIZE;  //커널 스택 마지막부터 시작
+
+  // //copy trapframe
+  // sp -= sizeof(*newThread->tf);
+  // newThread->tf = (struct trapframe*)sp;
+  // *newThread->tf = *curproc->tf;
+  
+  // //trapret address
+  // sp -= 4;
+  // *(uint *)sp = (uint)trapret;
+
+
+  // sp -= sizeof(*newThread->context);
+  // newThread->context = (struct context*)sp;
+  // memset(newThread->context, 0, sizeof(*newThread->context));
+
+  // newThread->context->eip = (uint)forkret;
+
+  //user stack
+  // uint sz;
+  // sz = PGROUNDUP(curproc->sz);
+  // if ((sz = allocuvm(curproc->pgdir, sz, sz + PGSIZE)) == 0) {
+  //   newThread->kstack = 0;
+  //   newThread->tid = 0;
+  //   newThread->state = UNUSED;
+  //   release(&ptable.lock);
+  //   return -1;
+  // }
+  // curproc->t_sz = sz;
+
+  // sp = (char *)sz;
+
+
+  // sp = (char *)stack + 4096;
+  // //curproc->sz = (uint)sp;
+  
+  // sp -= 4;
+  // *(uint *)sp = (uint)0xffffffff;
+  
+  // sp -= 4;
+  // *(uint *)sp = (uint)arg2;
+  // sp -= 4;
+  // *(uint *)sp = (uint)arg1;
+
+
+
+  //newThread->tf->esp = (uint)sp;
+  newThread->tf->eip = (uint)fcn;
+
+  //
+  // curproc->thread_num++;
+  // newThread->thread_num = curproc->thread_num;
+  // newThread->tid = curproc->tid + 1;
+  tid = newThread->tid;
+  cprintf("tid : %d, t_num : %d\n", curproc->tid, curproc->thread_num);
+
+
+
+
+
+
+
+  // uint sz, sp;
+  // sz = PGSIZE;
+
+  // if ((sz = allocuvm(newThread->pgdir, sz, sz + 2*PGSIZE)) == 0) {
+  //   kfree(newThread->kstack);
+  //   newThread->kstack = 0;
+  //   newThread->state = UNUSED;
+  //   release(&ptable.lock);
+  //   return -1;
+  // }
+  // clearpteu(newThread->pgdir, (char*)(sz - 2*PGSIZE));
+
+
+  // Copy process state from proc.
+  // if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
+  //   kfree(np->kstack);
+  //   np->kstack = 0;
+  //   np->state = UNUSED;
+  //   return -1;
+  // }
+
+
+
+
+  newThread->sz = curproc->sz;
+  *newThread->tf = *curproc->tf;
+
+  char *sp = (char *)stack + PGSIZE;
+  sp -= 4;
+  *(uint *)sp = (uint)arg2;
+  sp -= 4;
+  *(uint *)sp = (uint)arg1;
+  sp -= 4;
+  *(uint *)sp = 0xffffffff; 
+
+
+  newThread->tf->esp = (uint)sp;
+
+  newThread->tf->eip = (uint)fcn;
+  // newThread->tf->esp = (uint)arg1;
+  cprintf("esp : %p %d | eip : %p\n\n", newThread->tf->esp, newThread->tf->esp, newThread->tf->eip);  
+  //cprintf("esp : %d | esp + 4 : %d\n\n", newThread->tf->esp, newThread->tf->esp + 4); 
+
+
+  // Clear %eax so that fork returns 0 in the child.
+  //newThread->tf->eax = 0;
+  
+  newThread->state = RUNNABLE;
   release(&ptable.lock);
 
-  return pid;
+  return tid;
 
 }
 
 int join(void **stack) {
-  cprintf("%p, %p, this is join\n", stack, *stack);
+  cprintf(" stack : %p, *stack : %p, this is join\n", stack, *stack);
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
@@ -603,9 +700,10 @@ int join(void **stack) {
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
-        kfree(p->kstack);
+        //kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        
+        //freevm(p->pgdir); //주소공간 공유하므로
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
