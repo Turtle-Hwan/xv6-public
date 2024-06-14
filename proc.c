@@ -556,9 +556,6 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
       newThread->ofile[i] = filedup(curproc->ofile[i]);
   safestrcpy(newThread->name, curproc->name, sizeof(curproc->name));
 
-  // newThread->thread_next = 0;
-  // newThread->thread_head = curproc;
-
 
   // 부모 process의 thread num 증가, 이에 해당하는 tid 부여
   curproc->thread_num++;
@@ -573,6 +570,7 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
   */
   newThread->sz = curproc->sz;
   *newThread->tf = *curproc->tf;
+
 
   char *sp = (char *)stack + PGSIZE;  //현재 stack 위치 가리킬 stack pointer / user stack 끝에서부터 거꾸로 가면서 원하는 arg 넣는다.
   sp -= 4;
@@ -595,7 +593,6 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
   release(&ptable.lock);
 
   return tid;
-
 }
 
 int join(void **stack) {
@@ -617,7 +614,7 @@ int join(void **stack) {
         kfree(p->kstack);
         p->kstack = 0;
         
-        //freevm(p->pgdir); //주소공간 공유하므로 free 하면 안됨!! 
+        //freevm(p->pgdir); //주소공간 공유하므로 free 하면 안됨!! free 하면 재시작한다..
         p->tid = 0;
         p->parent = 0;
         p->name[0] = 0;

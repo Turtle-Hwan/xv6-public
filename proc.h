@@ -50,12 +50,8 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
-  int tid;
+  int tid;            //if it is thread, tid is 1~
   int thread_num;
-  // uint t_sz;                    //Size of thread memory
-  // pde_t t_pgdir;
-  // struct proc *thread_next;
-  // struct proc *thread_head;
 };
 
 

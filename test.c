@@ -36,6 +36,6 @@ int main() {
     printf(1, "thread running error\n");
   }
 
-  printf(1, "[Thread join Result] a : %d, b : %d\n", a, b);
+  printf(1, "[Thread join, Local var Result] a : %d, b : %d\n", a, b);
   exit();
 }
