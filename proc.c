@@ -534,8 +534,7 @@ procdump(void)
 }
 
 int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
-  cprintf("\n stack addr: %p, this is clone %d %d \n", stack, *(int*)arg1, *(int*)arg2);
-  cprintf(" %p %p %p %p\n\n", fcn, arg1, arg2, stack);
+  cprintf(" <clone system call addrs> fcn : %p, arg1 : %p, arg2 : %p, user stack : %p\n", fcn, arg1, arg2, stack);
   
   int i, tid;
   struct proc *newThread;
@@ -547,134 +546,50 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
   }
 
   acquire(&ptable.lock);
-  // process 내의 공유 pgdir 등 새로 만들어진 thread에 연결
+  // 기존 process의 pgdir 등 공유 자원을 새로 만들어진 thread와 연결
   newThread->parent = curproc;
   newThread->pgdir = curproc->pgdir;
   newThread->pid = curproc->pid;
   newThread->cwd = idup(curproc->cwd);
-  
   for(i = 0; i < NOFILE; i++)
     if(curproc->ofile[i])
       newThread->ofile[i] = filedup(curproc->ofile[i]);
   safestrcpy(newThread->name, curproc->name, sizeof(curproc->name));
 
-  newThread->thread_next = 0;
-  newThread->thread_head = curproc;
-
-  //user stack 공간 할당 및 받아온 stack 공간에 연결  
-  //부모 프로세스와 자식 스레드들은 주소공간을 공유해야 한다.
-
-  // char *sp;
-
-  // newThread->kstack = curproc->kstack;
-  // sp = newThread->kstack + KSTACKSIZE;  //커널 스택 마지막부터 시작
-
-  // //copy trapframe
-  // sp -= sizeof(*newThread->tf);
-  // newThread->tf = (struct trapframe*)sp;
-  // *newThread->tf = *curproc->tf;
-  
-  // //trapret address
-  // sp -= 4;
-  // *(uint *)sp = (uint)trapret;
+  // newThread->thread_next = 0;
+  // newThread->thread_head = curproc;
 
 
-  // sp -= sizeof(*newThread->context);
-  // newThread->context = (struct context*)sp;
-  // memset(newThread->context, 0, sizeof(*newThread->context));
-
-  // newThread->context->eip = (uint)forkret;
-
-  //user stack
-  // uint sz;
-  // sz = PGROUNDUP(curproc->sz);
-  // if ((sz = allocuvm(curproc->pgdir, sz, sz + PGSIZE)) == 0) {
-  //   newThread->kstack = 0;
-  //   newThread->tid = 0;
-  //   newThread->state = UNUSED;
-  //   release(&ptable.lock);
-  //   return -1;
-  // }
-  // curproc->t_sz = sz;
-
-  // sp = (char *)sz;
-
-
-  // sp = (char *)stack + 4096;
-  // //curproc->sz = (uint)sp;
-  
-  // sp -= 4;
-  // *(uint *)sp = (uint)0xffffffff;
-  
-  // sp -= 4;
-  // *(uint *)sp = (uint)arg2;
-  // sp -= 4;
-  // *(uint *)sp = (uint)arg1;
-
-
-
-  //newThread->tf->esp = (uint)sp;
-  newThread->tf->eip = (uint)fcn;
-
-  //
-  // curproc->thread_num++;
-  // newThread->thread_num = curproc->thread_num;
-  // newThread->tid = curproc->tid + 1;
+  // 부모 process의 thread num 증가, 이에 해당하는 tid 부여
+  curproc->thread_num++;
+  newThread->thread_num = curproc->thread_num;
+  newThread->tid = curproc->thread_num;
   tid = newThread->tid;
-  cprintf("tid : %d, t_num : %d\n", curproc->tid, curproc->thread_num);
+  // cprintf(" tid: %d, n_tid : %d, c_t_num : %d\n", tid, newThread->tid, curproc->thread_num);
 
 
-
-
-
-
-
-  // uint sz, sp;
-  // sz = PGSIZE;
-
-  // if ((sz = allocuvm(newThread->pgdir, sz, sz + 2*PGSIZE)) == 0) {
-  //   kfree(newThread->kstack);
-  //   newThread->kstack = 0;
-  //   newThread->state = UNUSED;
-  //   release(&ptable.lock);
-  //   return -1;
-  // }
-  // clearpteu(newThread->pgdir, (char*)(sz - 2*PGSIZE));
-
-
-  // Copy process state from proc.
-  // if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
-  //   kfree(np->kstack);
-  //   np->kstack = 0;
-  //   np->state = UNUSED;
-  //   return -1;
-  // }
-
-
-
-
+  /* stack size, trapframe 복사 후 받아온 user stack 공간에 연결  
+   * 부모 프로세스와 자식 스레드들은 주소공간을 공유해야 한다.
+  */
   newThread->sz = curproc->sz;
   *newThread->tf = *curproc->tf;
 
-  char *sp = (char *)stack + PGSIZE;
+  char *sp = (char *)stack + PGSIZE;  //현재 stack 위치 가리킬 stack pointer / user stack 끝에서부터 거꾸로 가면서 원하는 arg 넣는다.
   sp -= 4;
   *(uint *)sp = (uint)arg2;
   sp -= 4;
   *(uint *)sp = (uint)arg1;
   sp -= 4;
-  *(uint *)sp = 0xffffffff; 
-
+  *(uint *)sp = 0xffffffff;   
 
   newThread->tf->esp = (uint)sp;
-
   newThread->tf->eip = (uint)fcn;
-  // newThread->tf->esp = (uint)arg1;
-  cprintf("esp : %p %d | eip : %p\n\n", newThread->tf->esp, newThread->tf->esp, newThread->tf->eip);  
-  //cprintf("esp : %d | esp + 4 : %d\n\n", newThread->tf->esp, newThread->tf->esp + 4); 
+  cprintf(" <change thread trapfram address> esp : %p | eip : %p\n", newThread->tf->esp, newThread->tf->eip);  
+  cprintf(" <address in user stack> esp : %p | esp + 4 : %p | esp + 8 : %p\n\n", *(uint *)newThread->tf->esp,  *(uint *)(newThread->tf->esp + 4), *(uint *)(newThread->tf->esp + 8)); 
 
 
   // Clear %eax so that fork returns 0 in the child.
-  //newThread->tf->eax = 0;
+  newThread->tf->eax = 0;
   
   newThread->state = RUNNABLE;
   release(&ptable.lock);
@@ -684,9 +599,8 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack) {
 }
 
 int join(void **stack) {
-  cprintf(" stack : %p, *stack : %p, this is join\n", stack, *stack);
   struct proc *p;
-  int havekids, pid;
+  int havekids, tid;
   struct proc *curproc = myproc();
   
   acquire(&ptable.lock);
@@ -699,18 +613,18 @@ int join(void **stack) {
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
-        pid = p->pid;
-        //kfree(p->kstack);
+        tid = p->tid;
+        kfree(p->kstack);
         p->kstack = 0;
         
-        //freevm(p->pgdir); //주소공간 공유하므로
-        p->pid = 0;
+        //freevm(p->pgdir); //주소공간 공유하므로 free 하면 안됨!! 
+        p->tid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
         release(&ptable.lock);
-        return pid;
+        return tid;
       }
     }
 
